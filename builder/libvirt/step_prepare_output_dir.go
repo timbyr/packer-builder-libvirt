@@ -1,6 +1,7 @@
 package libvirt
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -47,7 +48,9 @@ func (stepPrepareOutputDir) Run(state multistep.StateBag) multistep.StepAction {
 		cmd := exec.Command("tar", args...)
 		err := cmd.Run()
 		if err != nil {
+			err := fmt.Errorf("Error extracting: %s", err)
 			state.Put("error", err)
+			ui.Error(err.Error())
 			return multistep.ActionHalt
 		}
 	}
