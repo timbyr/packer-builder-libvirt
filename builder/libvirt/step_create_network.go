@@ -79,8 +79,11 @@ func (stepCreateNetwork) Cleanup(state multistep.StateBag) {
 	config := state.Get("config").(*config)
 	ui := state.Get("ui").(packer.Ui)
 
-	_, _, err := virsh("net-destroy", config.VMName)
-	if err != nil {
-		ui.Error(fmt.Sprintf("Error destroying network: %s", err))
+	_, _, err := virsh("net-info", config.VMName)
+	if err == nil {
+		_, _, err := virsh("net-destroy", config.VMName)
+		if err != nil {
+			ui.Error(fmt.Sprintf("Error destroying network: %s", err))
+		}
 	}
 }
