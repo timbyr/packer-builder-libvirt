@@ -2,11 +2,12 @@ package libvirt
 
 import (
 	"fmt"
-	"github.com/mitchellh/multistep"
-	"github.com/mitchellh/packer/packer"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/mitchellh/multistep"
+	"github.com/mitchellh/packer/packer"
 )
 
 type xmlTemplateData struct {
@@ -37,8 +38,7 @@ func (stepCreateXML) Run(state multistep.StateBag) multistep.StepAction {
 
 	ui.Say("Building and writing XML file")
 
-	diskPath, err := filepath.Abs(filepath.Join(config.OutputDir,
-		config.DiskName+".img"))
+	diskPath, err := filepath.Abs(filepath.Join(config.OutputDir, config.DiskName+".img"))
 	if err != nil {
 		err := fmt.Errorf("Error creating XML file: %s", err)
 		state.Put("error", err)
@@ -56,7 +56,14 @@ func (stepCreateXML) Run(state multistep.StateBag) multistep.StepAction {
 		ISOPath:    isoPath,
 	}
 
-	xmlTemplate := DefaultXMLTemplate
+	xmlTemplate := ""
+	switch config.DomainType {
+	case "lxc":
+		xmlTemplate = DefaultXMLTemplateLXC
+	default:
+		xmlTemplate = DefaultXMLTemplate
+	}
+
 	if config.XMLTemplatePath != "" {
 		f, err := os.Open(config.XMLTemplatePath)
 		if err != nil {
@@ -88,22 +95,22 @@ func (stepCreateXML) Run(state multistep.StateBag) multistep.StepAction {
 
 	xmlData := ParseXML(xmlContents)
 	/*
-	TODO: figure out how to add this stuff back in!
+		TODO: figure out how to add this stuff back in!
 
-	if config.XMLData != nil {
-		log.Println("Setting custom XML data...")
-		for k, v := range config.XMLData {
-			log.Printf("Setting XML: '%s' = '%s'", k, v)
-			xmlData[k] = v
+		if config.XMLData != nil {
+			log.Println("Setting custom XML data...")
+			for k, v := range config.XMLData {
+				log.Printf("Setting XML: '%s' = '%s'", k, v)
+				xmlData[k] = v
+			}
 		}
-	}
 
-	if floppyPathRaw, ok := state.GetOk("floppy_path"); ok {
-		log.Println("Floppy path present, setting in XML")
-		xmlData["floppy0.present"] = "TRUE"
-		xmlData["floppy0.fileType"] = "file"
-		xmlData["floppy0.fileName"] = floppyPathRaw.(string)
-	}
+		if floppyPathRaw, ok := state.GetOk("floppy_path"); ok {
+			log.Println("Floppy path present, setting in XML")
+			xmlData["floppy0.present"] = "TRUE"
+			xmlData["floppy0.fileType"] = "file"
+			xmlData["floppy0.fileName"] = floppyPathRaw.(string)
+		}
 	*/
 
 	xmlPath := filepath.Join(config.OutputDir, config.VMName+".xml")
@@ -163,6 +170,27 @@ const DefaultXMLTemplate = `
     <interface type="network">
       <source network="{{ .NetName }}"/>
       <model type="virtio"/>
+    </interface>
+  </devices>
+</domain>
+`
+
+const DefaultXMLTemplateLXC = `
+<domain type="{{ .DomainType }}">
+  <name>{{ .Name }}</name>
+  <memory unit="MiB">{{ .MemSize }}</memory>
+  <os>
+    <type>exe</type>
+    <init>/sbin/init</init>
+  </os>
+  <devices>
+  	<console type='pty'/>
+	  <filesystem type='mount'>
+	    <source dir='{{ .DiskPath }}'/>
+  	  <target dir='/'/>
+    </filesystem>
+    <interface type='network'>
+      <source network="{{ .NetName }}"/>
     </interface>
   </devices>
 </domain>
