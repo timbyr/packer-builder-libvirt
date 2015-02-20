@@ -42,13 +42,13 @@ func (stepPrepareOutputDir) Run(state multistep.StateBag) multistep.StepAction {
 		case "bz2", "bzip2":
 			args = append(args, "-j")
 		}
-		args = append(args, "-xf")
+		args = append(args, "-x", "-f")
 		args = append(args, isoPath)
 
 		cmd := exec.Command("tar", args...)
-		err := cmd.Run()
+		buf, err := cmd.CombinedOutput()
 		if err != nil {
-			err := fmt.Errorf("Error extracting: %s", err)
+			err := fmt.Errorf("Error extracting: %s %s", err, buf)
 			state.Put("error", err)
 			ui.Error(err.Error())
 			return multistep.ActionHalt
