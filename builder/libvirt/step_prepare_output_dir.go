@@ -1,11 +1,14 @@
 package libvirt
 
 import (
-	"github.com/mitchellh/multistep"
-	"github.com/mitchellh/packer/packer"
 	"log"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
+
+	"github.com/mitchellh/multistep"
+	"github.com/mitchellh/packer/packer"
 )
 
 type stepPrepareOutputDir struct{}
@@ -13,6 +16,7 @@ type stepPrepareOutputDir struct{}
 func (stepPrepareOutputDir) Run(state multistep.StateBag) multistep.StepAction {
 	config := state.Get("config").(*config)
 	ui := state.Get("ui").(packer.Ui)
+	isoPath := state.Get("iso_path").(string)
 
 	if _, err := os.Stat(config.OutputDir); err == nil && config.PackerForce {
 		ui.Say("Deleting previous output directory...")
@@ -22,6 +26,30 @@ func (stepPrepareOutputDir) Run(state multistep.StateBag) multistep.StepAction {
 	if err := os.MkdirAll(config.OutputDir, 0755); err != nil {
 		state.Put("error", err)
 		return multistep.ActionHalt
+	}
+
+	args := []string{"-C", config.OutputDir}
+	switch config.DomainType {
+	case "lxc":
+		parts := strings.Split(isoPath, ".")
+		compressor := parts[len(parts)-1:][0]
+		switch compressor {
+		case "gz":
+			args = append(args, "-z")
+		case "xz":
+			args = append(args, "-J")
+		case "bz2", "bzip2":
+			args = append(args, "-j")
+		}
+		args = append(args, "-xf")
+		args = append(args, isoPath)
+
+		cmd := exec.Command("tar", args...)
+		err := cmd.Run()
+		if err != nil {
+			state.Put("error", err)
+			return multistep.ActionHalt
+		}
 	}
 
 	return multistep.ActionContinue
