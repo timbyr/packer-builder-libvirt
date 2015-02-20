@@ -1,11 +1,12 @@
 package libvirt
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/mitchellh/multistep"
 	"github.com/mitchellh/packer/packer"
-	"os"
-	"fmt"
-	"path/filepath"
 )
 
 type stepCreateNetwork struct{}
@@ -14,18 +15,26 @@ func (stepCreateNetwork) Run(state multistep.StateBag) multistep.StepAction {
 	config := state.Get("config").(*config)
 	ui := state.Get("ui").(packer.Ui)
 
-	// TODO: Find IP address & network ...
-	// TODO: config.HostIp
+	netTemplate := `
+<network>
+  <name>{{ .VMName }}</name>
+  <forward mode='nat'/>
+<!--  <bridge name='packer-{{ .VMName }}' stp='on' delay='0' /> -->
+  <ip address='10.0.2.2' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='10.0.2.15' end='10.0.2.254' />
+    </dhcp>
+  </ip>
+</network>
+`
 
-	ni := &netInfo{
-		VMName:     config.VMName,
-		IP:         "172.13.92.1",
-		Netmask:    "255.255.255.0",
-		RangeStart: "172.13.92.2",
-		RangeEnd:   "172.13.92.250",
+	type netInfo struct {
+		VMName string
 	}
 
-	state.Put("host_ip", ni.IP)
+	ni := &netInfo{
+		VMName: config.VMName,
+	}
 
 	netContents, err := config.tpl.Process(netTemplate, ni)
 	if err != nil {
@@ -35,15 +44,27 @@ func (stepCreateNetwork) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	netPath := filepath.Join(config.OutputDir, "net.xml")
-	if err := write(netPath, netContents); err != nil {
-		err := fmt.Errorf("Error creating network XML file: %s", err)
+	f, err := ioutil.TempFile("", "packer-")
+	if err != nil {
+		err := fmt.Errorf("Error creating network: %s", err)
 		state.Put("error", err)
 		ui.Error(err.Error())
 		return multistep.ActionHalt
 	}
 
-	_, _, err = virsh("net-create", netPath)
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	_, err = f.Write([]byte(netContents))
+	if err != nil {
+		err := fmt.Errorf("Error creating network: %s", err)
+		state.Put("error", err)
+		ui.Error(err.Error())
+		return multistep.ActionHalt
+	}
+
+	f.Sync()
+	_, _, err = virsh("net-create", f.Name())
 	if err != nil {
 		err := fmt.Errorf("Error creating network: %s", err)
 		state.Put("error", err)
@@ -63,37 +84,3 @@ func (stepCreateNetwork) Cleanup(state multistep.StateBag) {
 		ui.Error(fmt.Sprintf("Error destroying network: %s", err))
 	}
 }
-
-func write(path string, data string) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	if _, err := f.WriteString(data); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-type netInfo struct {
-	VMName     string
-	IP         string
-	Netmask    string
-	RangeStart string
-	RangeEnd   string
-}
-
-const netTemplate = `
-<network>
-  <name>{{ .VMName }}</name>
-  <forward mode="nat"/>
-  <ip address="{{ .IP }}" netmask="{{ .Netmask }}">
-    <dhcp>
-	  <range start="{{ .RangeStart }}" end="{{ .RangeEnd }}" />
-	</dhcp>
-  </ip>
-</network>
-`

@@ -16,7 +16,7 @@ import (
 	"github.com/mitchellh/packer/packer"
 )
 
-const BuilderId = "qur.libvirt"
+const BuilderId = "vtolstov.libvirt"
 
 type Builder struct {
 	config config
@@ -306,7 +306,7 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 	}
 
 	// Warnings
-	if b.config.ShutdownCommand == "" {
+	if b.config.ShutdownCommand == "" && !strings.HasPrefix(b.config.URI, "lxc") {
 		warnings = append(warnings,
 			"A shutdown_command was not specified. Without a shutdown command, Packer\n"+
 				"will forcibly halt the virtual machine, which may result in data loss.")
@@ -338,11 +338,12 @@ func (b *Builder) Run(ui packer.Ui, hook packer.Hook, cache packer.Cache) (packe
 		&common.StepCreateFloppy{
 			Files: b.config.FloppyFiles,
 		},
-		new(stepHTTPServer),
 		new(stepCreateDisk),
-		new(stepCreateXML),
+		new(stepHTTPServer),
 		new(stepCreateNetwork),
+		new(stepCreateXML),
 		new(stepRun),
+		&stepBootWait{},
 		new(stepTypeBootCommand),
 		&common.StepConnectSSH{
 			SSHAddress:     sshAddress,
