@@ -15,14 +15,15 @@ func (stepCreateNetwork) Run(state multistep.StateBag) multistep.StepAction {
 	config := state.Get("config").(*config)
 	ui := state.Get("ui").(packer.Ui)
 
+	ui.Say("Creating networking...")
+
 	netTemplate := `
 <network>
   <name>{{ .VMName }}</name>
   <forward mode='nat'/>
-<!--  <bridge name='packer-{{ .VMName }}' stp='on' delay='0' /> -->
   <ip address='10.0.2.2' netmask='255.255.255.0'>
     <dhcp>
-      <range start='10.0.2.15' end='10.0.2.254' />
+      <range start='10.0.2.15' end='10.0.2.15' />
     </dhcp>
   </ip>
 </network>
@@ -71,6 +72,9 @@ func (stepCreateNetwork) Run(state multistep.StateBag) multistep.StepAction {
 		ui.Error(err.Error())
 		return multistep.ActionHalt
 	}
+
+	state.Put("host_ip", "10.0.2.2")
+	state.Put("guest_ip", "10.0.2.15")
 
 	return multistep.ActionContinue
 }

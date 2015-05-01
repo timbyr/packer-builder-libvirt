@@ -10,8 +10,9 @@ import (
 )
 
 func sshAddress(state multistep.StateBag) (string, error) {
-	sshHostPort := state.Get("sshHostPort").(uint)
-	return fmt.Sprintf("127.0.0.1:%d", sshHostPort), nil
+	guest_ip := state.Get("guest_ip").(string)
+	sshHostPort := state.Get("config").(*config).SSHPort
+	return fmt.Sprintf("%s:%d", guest_ip, sshHostPort), nil
 }
 
 func sshConfig(state multistep.StateBag) (*gossh.ClientConfig, error) {

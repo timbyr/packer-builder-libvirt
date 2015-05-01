@@ -37,6 +37,7 @@ type config struct {
 	DiskName        string   `mapstructure:"disk_name"`
 	DiskType        string   `mapstructure:"disk_type"`
 	DiskSize        uint     `mapstructure:"disk_size"`
+	DiskImage       bool     `mapstructure:"disk_image"`
 	FloppyFiles     []string `mapstructure:"floppy_files"`
 	Headless        bool     `mapstructure:"headless"`
 	HTTPDir         string   `mapstructure:"http_directory"`
@@ -339,6 +340,7 @@ func (b *Builder) Run(ui packer.Ui, hook packer.Hook, cache packer.Cache) (packe
 			Files: b.config.FloppyFiles,
 		},
 		new(stepCreateDisk),
+		new(stepCopyDisk),
 		new(stepHTTPServer),
 		new(stepCreateNetwork),
 		new(stepCreateXML),

@@ -39,8 +39,12 @@ func (s *stepTypeBootCommand) Run(state multistep.StateBag) multistep.StepAction
 	hostIp := state.Get("host_ip").(string)
 	ui := state.Get("ui").(packer.Ui)
 
+	if config.DiskImage == true {
+		return multistep.ActionContinue
+	}
+
 	// Get the VNC IP / Port
-	virshOut, _, err := virsh("vncdisplay", config.VMName)
+	virshOut, _, err := virsh("-c", config.URI, "vncdisplay", config.VMName)
 	vncAddr := strings.TrimSpace(virshOut)
 	colon := strings.LastIndex(vncAddr, ":")
 	if colon < 0 || colon > len(vncAddr)-2 {

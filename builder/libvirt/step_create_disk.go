@@ -19,6 +19,10 @@ func (s *stepCreateDisk) Run(state multistep.StateBag) multistep.StepAction {
 	path := filepath.Join(config.OutputDir, config.DiskName+".img")
 	size := fmt.Sprintf("%dM", config.DiskSize)
 
+	if config.DiskImage == true {
+		return multistep.ActionContinue
+	}
+
 	switch config.DomainType {
 	case "kvm":
 		ui.Say("Creating hard drive...")

@@ -155,7 +155,7 @@ const DefaultXMLTemplate = `
     <disk type="file" device="disk">
       <driver name="qemu" type="{{ .DiskType }}"/>
       <source file="{{ .DiskPath }}"/>
-      <target dev="vda" bus="virtio"/>
+	  <target dev='sda' bus='scsi'/>
     </disk>
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
@@ -163,6 +163,7 @@ const DefaultXMLTemplate = `
       <target dev="hdc" bus="ide"/>
       <readonly/>
     </disk>
+	<controller type='scsi' model='virtio-scsi' />
     <graphics type="vnc" port="-1" autoport="yes"/>
     <video>
       <model type="cirrus" vram="9216" heads="1"/>
